@@ -8,4 +8,4 @@ LPVOID GetRemoteLibraryAddress(HANDLE procHandle, LPWSTR libraryName);
 BOOL EnableDebugPrivileges(HANDLE* mainToken);
 
 BOOL IsElevated();
-bool ElevateWithArgs(LPCWSTR args);
+bool ElevateWithArgs(std::wstring args);

@@ -267,7 +267,7 @@ BOOL IsElevated() {
 	return fRet;
 }
 
-bool ElevateWithArgs(LPCWSTR args) {
+bool ElevateWithArgs(std::wstring args) {
 	wchar_t szPath[MAX_PATH];
 	if(GetModuleFileName(NULL, szPath, MAX_PATH)) {
 		SHELLEXECUTEINFO sei = {0};
@@ -276,7 +276,7 @@ bool ElevateWithArgs(LPCWSTR args) {
 		sei.lpFile = szPath;
 		sei.hwnd = NULL;
 		sei.nShow = SW_NORMAL;
-		sei.lpParameters = args;
+		sei.lpParameters = args.c_str();
 
 		return ShellExecuteEx(&sei) == TRUE;
 	}

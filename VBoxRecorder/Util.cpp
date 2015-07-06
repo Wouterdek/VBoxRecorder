@@ -7,6 +7,7 @@
 #include <functional> 
 #include <cctype>
 #include <locale>
+#include <iostream>
 
 // trim from start
 std::string &ltrim(std::string &s) {
@@ -45,14 +46,12 @@ std::vector<std::string> split(const std::string &s, char delim, bool removeEmpt
 }
 
 std::wstring strtowstr(const std::string& str) {
-	std::wstring wstr(str.length()+1, 0);
+	size_t converted = 0;
+	wchar_t* wchars = new wchar_t[str.length()+1];
+	errno_t error = mbstowcs_s(&converted, wchars, str.length()+1, str.c_str(), _TRUNCATE);
+	std::wstring wstr(wchars, wchars+converted-1);
+	delete[] wchars;
 
-	MultiByteToWideChar(CP_ACP,
-						0,
-						str.c_str(),
-						str.length(),
-						&wstr[0],
-						str.length());
 	return wstr;
 }
 std::string wstrtostr(const std::wstring& wstr) {

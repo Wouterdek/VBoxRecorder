@@ -24,12 +24,12 @@ struct RecordingSettings{
 	}
 	wstring toParamString() {
 		wstringstream params;
-		params << "-machine \"" << machineID << "\" ";
 		params << "-pid " << targetPID << ' ';
 		params << "-width " << width << ' ';
 		params << "-height " << height << ' ';
 		params << "-bpp " << bpp << ' ';
 		params << "-outputmode " << outputMode << ' ';
+		params << "-machine " << machineID << ' ';
 		params << "-outputfile \"" << strtowstr(outputFile) << "\" ";
 		return params.str();
 	}
@@ -354,7 +354,7 @@ void startRecording(IVirtualBox* vbox, ISession* session) {
 		recordVideo();
 	} else {
 		cout << "Elevating privileges to read VM process memory" << endl;
-		if(!ElevateWithArgs(settings.toParamString().c_str())){
+		if(!ElevateWithArgs(settings.toParamString())){
 			cout << "Error: could not elevate privileges to administrator. (errorcode=" << GetLastError() << ')' << endl;
 		}
 	}
@@ -560,6 +560,12 @@ void parseArguments(int argc, char *argv[]) {
 	for(int i = 1; i<argc; i++) { //first arg is self
 		char* arg = argv[i];
 		bool isLastArg = i+1 == argc;
+
+		if(trim(string(arg)).empty()) { //Skip empty entries
+			i++;
+			continue;
+		}
+
 		if(strcmp(arg, "-pid") == 0 && !isLastArg) {
 			try {
 				settings.targetPID = stoi(string(argv[i+1]));
@@ -622,10 +628,11 @@ int main(int argc, char *argv[]) {
 	parseArguments(argc, argv);
 	if(settings.isComplete()) {
 		if(!IsElevated()) {
-			if(!ElevateWithArgs(settings.toParamString().c_str())) {
+			if(!ElevateWithArgs(settings.toParamString())) {
 				cout << "Error: could not elevate privileges to administrator. (errorcode=" << GetLastError() << ')' << endl;
 				return 1;
 			}
+			return 0;
 		}
 
 		if(!recordVideo()) {
