@@ -36,8 +36,6 @@ struct RecordingSettings{
 } settings;
 
 bool recordVideo() {
-	wcout << "Settings: " << settings.toParamString() << endl;
-
 	if(settings.bpp != 32) {
 		cout << "Only 32bit color depth is currently supported" << endl;
 		return false;
@@ -77,11 +75,6 @@ bool recordVideo() {
 
 	size_t frameBufferPixelSize = settings.width * settings.height;
 	BGRAPixel* localFrameBuffer = new BGRAPixel[frameBufferPixelSize];
-
-	/*if(!ReadProcessMemory(procHandle, (LPCVOID)frameBufferPtr, localFrameBuffer, frameBufferPixelSize * sizeof(BGRAPixel), NULL)) {
-		cout << "Failed to read framebuffer! errorcode=" << GetLastError() << endl;
-		return false;
-	}*/
 
 	//Recording setup
 	int fps = 25;
