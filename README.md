@@ -15,6 +15,12 @@ This application allows you to do just that.
  
 To get a list of all available commands, use `help`
 ### Q&A
+  - I receive the message "Failed to create VirtualBox client!"
+    - Make sure you are using the correct VirtualBox version. The correct version is usually specified in the release notes. Feel free to create an issue when VBoxRecorder stops working for a newer version of VirtualBox.
+  - I receive the message "Could not find frame buffer!"
+    - This can occur when resizing the VirtualBox window. Fully close VirtualBox and VBoxRecorder, then start VirtualBox and wait for the OS to start. Then start VBoxRecorder and try to record.
+  - When I make recordings, the video file seems to be distorted/corrupted?
+    - Make sure that your VirtualBox screen has a regular desktop resolution. I couldn't find any numbers on this, but 1920x976, 1280x960, 1152x864, 1024x768 and 800x600 all worked for me. Using an unusual resolution causes distortion and corruption in the video codec, but PNG's should still work.
   - Why does this application need administrator rights?
     -   The VirtualBox API does contain a function "TakeScreenshot", however it seems to be broken. An alternative is available, but not fast enough for realtime high quality video capture. This application solves this problem by reading the framebuffer directly from the VM process memory. This requires administrator rights.
   - What formats are supported?
