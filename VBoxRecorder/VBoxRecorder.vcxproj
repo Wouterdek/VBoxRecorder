@@ -69,21 +69,21 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Users\Wouter\Documents\Libraries\ffmpeg-20150626-git-f1e1730-win32-dev\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\Wouter\Documents\Libraries\ffmpeg-20150626-git-f1e1730-win32-dev\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Users\Wouter\Documents\Libraries\ffmpeg-20160129-git-5893e87-win64-dev\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Wouter\Documents\Libraries\ffmpeg-20160129-git-5893e87-win64-dev\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Users\Wouter\Documents\Libraries\ffmpeg-20150630-git--win64\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\Wouter\Documents\Libraries\ffmpeg-20150630-git--win64\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Users\Wouter\Documents\Libraries\ffmpeg-20160129-git-5893e87-win64-dev\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Wouter\Documents\Libraries\ffmpeg-20160129-git-5893e87-win64-dev\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\Users\Wouter\Documents\Libraries\ffmpeg-20150630-git--win64\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\Wouter\Documents\Libraries\ffmpeg-20150630-git--win64\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Users\Wouter\Documents\Libraries\ffmpeg-20160129-git-5893e87-win64-dev\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Wouter\Documents\Libraries\ffmpeg-20160129-git-5893e87-win64-dev\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -97,7 +97,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>avcodec.lib;avutil.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>avcodec.lib;avdevice.lib;avfilter.lib;avformat.lib;avutil.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

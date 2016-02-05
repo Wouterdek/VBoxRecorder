@@ -35,6 +35,39 @@ struct RecordingSettings{
 	}
 } settings;
 
+//Hacky solution:
+// CheatEngine was used to locate the framebuffer offset in the VirtualBox process memory
+// This function retrieves this offset. This breaks every time the relevant executable is updated and the offsets change
+BGRAPixel* findFrameBuffer(HANDLE procHandle){
+	LPVOID libOffset = GetRemoteLibraryAddress(procHandle, L"VBoxSharedCrOpenGL.DLL");
+	if (libOffset != NULL) {
+		LPCVOID frameBufferPtrAddr = (LPCVOID)((char*)libOffset + 0x001084D0);
+		BGRAPixel* frameBufferPtr = NULL;
+		if (!ReadProcessMemory(procHandle, frameBufferPtrAddr, (LPVOID)&frameBufferPtr, 8, NULL)) {
+			cout << "Failed to read framebuffer pointer value!" << endl;
+			return NULL;
+		}
+		return frameBufferPtr;
+	}
+
+	libOffset = GetRemoteLibraryAddress(procHandle, L"VBoxC.dll");
+	if (libOffset != NULL) {
+		LPCVOID addr1 = (LPCVOID)((char*)libOffset + 0x00362618);
+		LPCVOID addr2 = 0;
+		if (!ReadProcessMemory(procHandle, addr1, (LPVOID)&addr2, 8, NULL)) {
+			return NULL;
+		}
+		addr2 = (LPCVOID)(((ULONG)addr2) + 0x6E8);
+		BGRAPixel* frameBufferPtr = NULL;
+		if (!ReadProcessMemory(procHandle, addr2, (LPVOID)&frameBufferPtr, 8, NULL)) {
+			return NULL;
+		}
+		return frameBufferPtr;
+	}
+
+	return NULL;
+}
+
 bool recordVideo() {
 	if(settings.bpp != 32) {
 		cout << "Only 32bit color depth is currently supported" << endl;
@@ -54,24 +87,13 @@ bool recordVideo() {
 		return false;
 	}
 
-	LPVOID libOffset = GetRemoteLibraryAddress(procHandle, L"VBoxSharedCrOpenGL.DLL");
-	if(libOffset == NULL) {
-		cout << "Could not retrieve VBoxSharedCrOpenGL.DL offset!" << endl;
+	BGRAPixel* frameBufferPtr = findFrameBuffer(procHandle);
+	if (frameBufferPtr == NULL){
+		cout << "Could not find frame buffer!" << endl;
 		CloseHandle(procHandle);
 		return false;
 	}
-
-	cout << "Found framebuffer pointer at 0x" << hex << libOffset << "+0x001084D0" << endl;
-
-	LPCVOID frameBufferPtrAddr = (LPCVOID)((char*)libOffset+0x001084D0);
-	BGRAPixel* frameBufferPtr = NULL;
-	if(!ReadProcessMemory(procHandle, frameBufferPtrAddr, (LPVOID)&frameBufferPtr, 8, NULL)) {
-		cout << "Failed to read framebuffer pointer value!" << endl;
-		CloseHandle(procHandle);
-		return false;
-	}
-
-	cout << "Framebuffer pointer = 0x" << hex << (void*)frameBufferPtr << endl;
+	cout << "Found framebuffer at 0x" << hex << (void*)frameBufferPtr << endl;
 
 	size_t frameBufferPixelSize = settings.width * settings.height;
 	BGRAPixel* localFrameBuffer = new BGRAPixel[frameBufferPixelSize];
@@ -306,7 +328,9 @@ void startRecording(IVirtualBox* vbox, ISession* session) {
 
 	ULONG width, height, bpp; //bpp sometimes 0?
 	LONG x, y;
-	hr = display->GetScreenResolution(0, &width, &height, &bpp, &x, &y);
+	GuestMonitorStatus status;
+
+	hr = display->GetScreenResolution(0, &width, &height, &bpp, &x, &y, &status);
 	if(FAILED(hr)) {
 		cout << "Failed to retrieve display information (error=" << hex << hr << ")" << endl;
 		display->Release();
@@ -396,7 +420,7 @@ void printMachineNames(IVirtualBox* vbox) {
 		result = SafeArrayAccessData(machinesArray, (void **)&machines);
 		if(SUCCEEDED(result)) {
 			cout << machinesArray->rgsabound[0].cElements << " virtual machines found: " << endl;
-			for(uint i = 0; i<machinesArray->rgsabound[0].cElements; i++) {
+			for(ULONG i = 0; i<machinesArray->rgsabound[0].cElements; i++) {
 				//Retrieve info
 				BSTR name;
 				result = machines[i]->get_Name(&name);
@@ -618,6 +642,7 @@ void parseArguments(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
+	cout << "VBoxRecorder for VirtualBox 5.0.14 r105127 Windows 64-bit" << endl;
 	parseArguments(argc, argv);
 	if(settings.isComplete()) {
 		if(!IsElevated()) {

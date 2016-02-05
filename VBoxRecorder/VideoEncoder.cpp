@@ -143,7 +143,7 @@ bool VideoEncoder::recordFrame(BGRAPixel* data) {
 			printf("Error writing frame\n");
 			return false;
 		}
-		av_free_packet(&pkt);
+		av_packet_unref(&pkt);
 	}
 	return true;
 }
@@ -168,7 +168,7 @@ bool VideoEncoder::close() {
 				printf("Error writing frame\n");
 				return false;
 			}
-			av_free_packet(&pkt);
+			av_packet_unref(&pkt);
 		}
 	}
 
