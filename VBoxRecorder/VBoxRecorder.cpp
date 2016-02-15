@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <string> 
 #include <ShlObj.h>
+#include <fstream>
 
 using namespace std;
 
@@ -11,13 +12,15 @@ enum OutputMode {
 };
 
 struct RecordingSettings{
-	RecordingSettings() : targetPID(0), width(0), height(0), bpp(0), outputMode(HUFFYUV) {}
+	RecordingSettings() : targetPID(0), width(0), height(0), bpp(0), outputMode(HUFFYUV), deleteScreenshotAfterUse(false){}
 
 	wstring machineID;
 	DWORD targetPID;
 	ULONG width, height, bpp;
 	OutputMode outputMode;
 	string outputFile;
+	string screenshot;
+	bool deleteScreenshotAfterUse;
 
 	bool isComplete() {
 		return !machineID.empty() && targetPID != 0 && width != 0 && height != 0 && bpp != 0 && !outputFile.empty();
@@ -31,14 +34,102 @@ struct RecordingSettings{
 		params << "-outputmode " << outputMode << ' ';
 		params << "-machine " << machineID << ' ';
 		params << "-outputfile \"" << strtowstr(outputFile) << "\" ";
+		params << "-screenshot \"" << strtowstr(screenshot) << "\" ";
+		params << "-deletescreenshot \"" << (int)deleteScreenshotAfterUse << "\" ";
 		return params.str();
 	}
 } settings;
+
+void* scanPageForSequence(HANDLE procHandle, PVOID baseAddr, SIZE_T size, char* sequence, SIZE_T sequenceLength){
+	void* bufferPtr = NULL;
+
+	char* data = new char[size];
+	if (!ReadProcessMemory(procHandle, baseAddr, (LPVOID)data, size, &size)) {
+		if (GetLastError() != ERROR_PARTIAL_COPY){
+			printf("\nFailed to read process memory! (error=%d)\n", GetLastError());
+			return NULL;
+		}
+	}
+
+	void* sequenceStart = NULL;
+	ULONG sequenceI = 0;
+	for (ULONG i = 0; i < size; i++){
+		if (data[i] == sequence[sequenceI]){
+			if (sequenceStart == NULL){
+				sequenceStart = (void*)(i+(ULONG)baseAddr);
+			}
+			sequenceI++;
+			
+			if (sequenceI == sequenceLength){
+				delete[] data;
+				return sequenceStart;
+			}
+		}
+		else{
+			sequenceStart = NULL;
+			sequenceI = 0;
+			if (data[i] == sequence[0]){
+				sequenceStart = (void*)(i + (ULONG)baseAddr);
+				sequenceI++;
+			}
+		}
+	}
+
+	delete[] data;
+	return NULL;
+}
+
+BGRAPixel* scanMemoryForSequence(HANDLE procHandle, BGRAPixel* sequence, size_t sequenceLength){
+	long count = 0;
+	MEMORY_BASIC_INFORMATION meminfo;
+	unsigned char *addr = 0;
+	while (true)
+	{
+		if (VirtualQueryEx(procHandle, addr, &meminfo, sizeof(meminfo)) == 0)
+		{
+			printf("Memory scan error %d\n", GetLastError());
+			break;
+		}
+
+		printf("Scanning memory region %d [%p - %p]\r", count, meminfo.BaseAddress, (ULONG)meminfo.BaseAddress + meminfo.RegionSize);
+		if ((meminfo.State & MEM_COMMIT) && (meminfo.Protect & PAGE_READWRITE))
+		{
+			BGRAPixel* address = (BGRAPixel*)scanPageForSequence(procHandle, meminfo.BaseAddress, meminfo.RegionSize, (char*)sequence, sequenceLength);
+			if (address != NULL){
+				printf("\n");
+				return address;
+			}
+		}
+		addr = (unsigned char*)meminfo.BaseAddress + meminfo.RegionSize;
+		count++;
+	}
+	printf("\n");
+	return NULL;
+}
 
 //Hacky solution:
 // CheatEngine was used to locate the framebuffer offset in the VirtualBox process memory
 // This function retrieves this offset. This breaks every time the relevant executable is updated and the offsets change
 BGRAPixel* findFrameBuffer(HANDLE procHandle){
+	if(!settings.screenshot.empty()){
+		cout << "Scanning process memory..." << std::endl;
+		ifstream inStream(settings.screenshot, ios::binary | ios::in | ios::ate);
+		if (!inStream.is_open()){
+			cout << "Failed to open reference screenshot" << std::endl;
+			return NULL;
+		}
+		std::streamsize size = inStream.tellg();
+		BGRAPixel* screenshot = new BGRAPixel[size];
+		inStream.seekg(0, ios::beg);
+		inStream.read((char*)screenshot, size);
+		BGRAPixel* frameBufferPtr = scanMemoryForSequence(procHandle, screenshot, size);
+		delete[] screenshot;
+		if (frameBufferPtr != NULL){
+			return frameBufferPtr;
+		}
+		cout << "Could not find reference screenshot in memory, attempting pointer trace." << std::endl;
+	}
+
 	LPVOID libOffset = GetRemoteLibraryAddress(procHandle, L"VBoxSharedCrOpenGL.DLL");
 	if (libOffset != NULL) {
 		LPCVOID frameBufferPtrAddr = (LPCVOID)((char*)libOffset + 0x001084D0);
@@ -351,7 +442,31 @@ void startRecording(IVirtualBox* vbox, ISession* session) {
 	settings.height = height;
 	settings.bpp = bpp;
 
-	//This is where we would call TakeScreenshot, if it wasn't broken
+	stringstream screenshotFile;
+	screenshotFile << rand();
+	screenshotFile << ".dat";
+	SAFEARRAY* screenshot;
+	hr = display->TakeScreenShotToArray(0, width, height, BitmapFormat_BGRA, &screenshot);
+	if (SUCCEEDED(hr)){
+		BGRAPixel* pixels = NULL;
+		hr = SafeArrayAccessData(screenshot, (void**)&pixels);
+		if (SUCCEEDED(hr)) {
+			ofstream out(screenshotFile.str(), ios::binary | ios::out);
+			//out.write((char*)pixels, width * height * sizeof(BGRAPixel));
+			out.write((char*)pixels, width * height/2 * sizeof(BGRAPixel));
+			out.flush();
+			out.close();
+			settings.screenshot = screenshotFile.str();
+			settings.deleteScreenshotAfterUse = true;
+			SafeArrayDestroy(screenshot);
+		}
+		else{
+			cout << "Failed to capture reference screenshot" << endl;
+		}
+	}
+	else{
+		cout << "Failed to capture reference screenshot" << endl;
+	}
 
 	display->Release();
 	console->Release();
@@ -632,9 +747,18 @@ void parseArguments(int argc, char *argv[]) {
 			}
 			i++;
 		} else if(strcmp(arg, "-outputfile") == 0 && !isLastArg) {
-			settings.outputFile = argv[i+1];
+			settings.outputFile = argv[i + 1];
 			i++;
-		} else {
+		}
+		else if (strcmp(arg, "-screenshot") == 0 && !isLastArg) {
+			settings.screenshot = argv[i + 1];
+			i++;
+		}
+		else if (strcmp(arg, "-deletescreenshot") == 0 && !isLastArg) {
+			settings.deleteScreenshotAfterUse = (bool)stoi(string(argv[i + 1]));
+			i++;
+		}
+		else {
 			cout << "Invalid argument \"" << arg << "\"" << endl;
 			exit(1);
 		}
@@ -643,6 +767,7 @@ void parseArguments(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
 	cout << "VBoxRecorder for VirtualBox 5.0.14 r105127 Windows 64-bit" << endl;
+	srand(time(NULL));
 	parseArguments(argc, argv);
 	if(settings.isComplete()) {
 		if(!IsElevated()) {
@@ -678,6 +803,10 @@ int main(int argc, char *argv[]) {
 
 		client->Release();
 	} while(0);
+
+	if (settings.deleteScreenshotAfterUse && !settings.screenshot.empty()){
+		remove(settings.screenshot.c_str());
+	}
 
 	CoUninitialize();
 	return 0;
