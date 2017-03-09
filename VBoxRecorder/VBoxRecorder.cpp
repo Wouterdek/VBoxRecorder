@@ -793,7 +793,7 @@ void parseArguments(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-	cout << "VBoxRecorder for VirtualBox 5.0.14 r105127 Windows 64-bit" << endl;
+	cout << "VBoxRecorder for VirtualBox 5.1.16 r113841 Windows 64-bit" << endl;
 	srand(time(NULL));
 	parseArguments(argc, argv);
 	if(settings.isComplete()) {
