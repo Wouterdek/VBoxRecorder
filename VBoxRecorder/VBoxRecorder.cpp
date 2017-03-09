@@ -40,9 +40,15 @@ struct RecordingSettings{
 	}
 } settings;
 
-void* scanPageForSequence(HANDLE procHandle, PVOID baseAddr, SIZE_T size, char* sequence, SIZE_T sequenceLength){
-	void* bufferPtr = NULL;
+bool pixelsEqual(BGRAPixel* p1, BGRAPixel* p2)
+{
+	return p1->blue == p2->blue &&
+		   p1->green == p2->green &&
+		   p1->red == p2->red;
+		   //p1->alpha == p2->alpha;
+}
 
+BGRAPixel* scanPageForSequence(HANDLE procHandle, PVOID baseAddr, SIZE_T size, BGRAPixel* sequence, SIZE_T sequenceLength){
 	char* data = new char[size];
 	if (!ReadProcessMemory(procHandle, baseAddr, (LPVOID)data, size, &size)) {
 		if (GetLastError() != ERROR_PARTIAL_COPY){
@@ -51,28 +57,45 @@ void* scanPageForSequence(HANDLE procHandle, PVOID baseAddr, SIZE_T size, char* 
 		}
 	}
 
-	void* sequenceStart = NULL;
-	ULONG sequenceI = 0;
-	for (ULONG i = 0; i < size; i++){
-		if (data[i] == sequence[sequenceI]){
-			if (sequenceStart == NULL){
-				sequenceStart = (void*)(i+(ULONG)baseAddr);
-			}
-			sequenceI++;
-			
-			if (sequenceI == sequenceLength){
-				delete[] data;
-				return sequenceStart;
-			}
-		}
-		else{
-			sequenceStart = NULL;
-			sequenceI = 0;
-			if (data[i] == sequence[0]){
-				sequenceStart = (void*)(i + (ULONG)baseAddr);
+	if (size < sizeof(BGRAPixel))
+	{
+		return NULL;
+	}
+	
+	//For each page until a match is found, this function is run.
+	//This brute force search is O( sizeof(BGRAPixel) * page_size )
+	//Better performance can be achieved by implementing Knuth-morris-pratt, booyer-moore or rabin-karp sub-string search
+	for(unsigned int offset = 0; offset < sizeof(BGRAPixel); offset++)
+	{
+		//data will be read as BGRAPixel*
+		//Make sure we don't go out of bounds
+		size_t curSize = ((size - offset) / sizeof(BGRAPixel));
+		BGRAPixel* pixelPtr = reinterpret_cast<BGRAPixel*>(reinterpret_cast<char*>(data)+offset);
+		
+		BGRAPixel* sequenceStart = NULL;
+		ULONG sequenceI = 0;
+		for (ULONG i = 0; i < curSize; i++) {
+			if (pixelsEqual(&(pixelPtr[i]), &(sequence[sequenceI]))) {
+				if (sequenceStart == NULL) {
+					sequenceStart = reinterpret_cast<BGRAPixel*>(reinterpret_cast<char*>(baseAddr) + i);
+				}
 				sequenceI++;
+
+				if (sequenceI == sequenceLength) {
+					delete[] data;
+					return sequenceStart;
+				}
+			}
+			else {
+				sequenceStart = NULL;
+				sequenceI = 0;
+				if (pixelsEqual(&(pixelPtr[i]), &(sequence[0]))) {
+					sequenceStart = reinterpret_cast<BGRAPixel*>(reinterpret_cast<char*>(baseAddr) + i);
+					sequenceI++;
+				}
 			}
 		}
+
 	}
 
 	delete[] data;
@@ -94,7 +117,7 @@ BGRAPixel* scanMemoryForSequence(HANDLE procHandle, BGRAPixel* sequence, size_t 
 		printf("Scanning memory region %d [%p - %p]\r", count, meminfo.BaseAddress, (ULONG)meminfo.BaseAddress + meminfo.RegionSize);
 		if ((meminfo.State & MEM_COMMIT) && (meminfo.Protect & PAGE_READWRITE))
 		{
-			BGRAPixel* address = (BGRAPixel*)scanPageForSequence(procHandle, meminfo.BaseAddress, meminfo.RegionSize, (char*)sequence, sequenceLength);
+			BGRAPixel* address = scanPageForSequence(procHandle, meminfo.BaseAddress, meminfo.RegionSize, sequence, sequenceLength);
 			if (address != NULL){
 				printf("\n");
 				return address;
@@ -118,12 +141,16 @@ BGRAPixel* findFrameBuffer(HANDLE procHandle){
 			cout << "Failed to open reference screenshot" << std::endl;
 			return NULL;
 		}
+
 		std::streamsize size = inStream.tellg();
-		BGRAPixel* screenshot = new BGRAPixel[size];
+		char* screenshotData = new char[size];
 		inStream.seekg(0, ios::beg);
-		inStream.read((char*)screenshot, size);
-		BGRAPixel* frameBufferPtr = scanMemoryForSequence(procHandle, screenshot, size);
-		delete[] screenshot;
+		inStream.read(screenshotData, size);
+		BGRAPixel* screenshot = reinterpret_cast<BGRAPixel*>(screenshotData);
+		size_t pixelCount = size / sizeof(BGRAPixel);
+
+		BGRAPixel* frameBufferPtr = scanMemoryForSequence(procHandle, screenshot, pixelCount);
+		delete[] screenshotData;
 		if (frameBufferPtr != NULL){
 			return frameBufferPtr;
 		}
