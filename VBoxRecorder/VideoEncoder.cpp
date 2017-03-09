@@ -74,9 +74,15 @@ bool VideoEncoder::open(std::string filePath, uint width, uint height) {
 	}
 
 	out->time_base = codecCtx->time_base;
-	formatCtx->streams[0]->codec = codecCtx;
+	int ret = avcodec_parameters_from_context(out->codecpar, codecCtx);
+	if (ret != 0)
+	{
+		printf("Error setting stream codec parameters\n");
+		return false;
+	}
+	//formatCtx->streams[0]->codec = codecCtx;
 
-	int ret = avio_open(&formatCtx->pb, filePath.c_str(), AVIO_FLAG_WRITE);
+	ret = avio_open(&formatCtx->pb, filePath.c_str(), AVIO_FLAG_WRITE);
 	if(ret < 0) {
 		char buf[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 		av_strerror(ret, buf, sizeof(buf));
@@ -110,11 +116,6 @@ bool VideoEncoder::open(std::string filePath, uint width, uint height) {
 }
 
 bool VideoEncoder::recordFrame(BGRAPixel* data) {
-	AVPacket pkt;
-	av_init_packet(&pkt);
-	pkt.data = NULL;    // packet data will be allocated by the encoder
-	pkt.size = 0;
-
 	if(settings.pixFormat == AV_PIX_FMT_RGB24) {
 		BGRAtoRGBPlane(data, width, height, frame->data[0]);
 	} else if(settings.pixFormat == AV_PIX_FMT_YUV444P) {
@@ -131,45 +132,67 @@ bool VideoEncoder::recordFrame(BGRAPixel* data) {
 	currentPts++;
 
 	//encode the image
-	int got_output;
-	int ret = avcodec_encode_video2(codecCtx, &pkt, frame, &got_output);
-	if(ret < 0) {
-		printf("Error encoding frame\n");
-		return false;
-	}
+	int ret = avcodec_send_frame(codecCtx, frame);
 
-	if(got_output) {
-		if(av_write_frame(formatCtx, &pkt) < 0) {
+	AVPacket pkt;
+	while(true)
+	{
+		av_init_packet(&pkt);
+		pkt.data = NULL;    // packet data will be allocated by the encoder
+		pkt.size = 0;
+
+		ret = avcodec_receive_packet(codecCtx, &pkt);
+		if(ret == AVERROR(EAGAIN))
+		{
+			break;
+		}else if(ret < 0)
+		{
+			printf("Error encoding frame\n");
+			return false;
+		}
+
+		if (av_write_frame(formatCtx, &pkt) < 0) {
 			printf("Error writing frame\n");
 			return false;
 		}
 		av_packet_unref(&pkt);
 	}
+	
+
 	return true;
 }
 
 bool VideoEncoder::close() {
 	//flush buffer
+	int ret = avcodec_send_frame(codecCtx, NULL);
+	if (ret < 0) {
+		printf("Error encoding frame\n");
+		return false;
+	}
+
 	AVPacket pkt;
-	int framesAvailable = TRUE;
-	while(framesAvailable) {
+	while(true) {
 		av_init_packet(&pkt);
 		pkt.data = NULL;
 		pkt.size = 0;
 
-		int ret = avcodec_encode_video2(codecCtx, &pkt, NULL, &framesAvailable);
-		if(ret < 0) {
+		ret = avcodec_receive_packet(codecCtx, &pkt);
+
+		if(ret < 0 && ret != AVERROR_EOF)
+		{
 			printf("Error encoding frame\n");
 			return false;
 		}
-
-		if(framesAvailable) {
-			if(av_write_frame(formatCtx, &pkt) < 0) {
-				printf("Error writing frame\n");
-				return false;
-			}
-			av_packet_unref(&pkt);
+		if(ret == AVERROR_EOF)
+		{
+			break;
 		}
+
+		if (av_write_frame(formatCtx, &pkt) < 0) {
+			printf("Error writing frame\n");
+			return false;
+		}
+		av_packet_unref(&pkt);
 	}
 
 	//write file ending and close
