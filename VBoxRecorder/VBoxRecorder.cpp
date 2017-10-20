@@ -519,7 +519,7 @@ void startRecording(IVirtualBox* vbox, ISession* session) {
 	}
 }
 
-void selectMachine(IVirtualBox* vbox, vector<string>& args) {
+void selectMachine(IVirtualBox* vbox, const vector<string>& args) {
 	if(args.size() == 0) {
 		cout << "Please supply a virtual machine ID, name, or list index." << endl;
 		return;

@@ -1,7 +1,6 @@
 #include "Util.h"
 
 #include <locale>
-#include <codecvt>
 #include <string>
 #include <algorithm> 
 #include <functional> 
@@ -26,7 +25,7 @@ std::string &trim(std::string &s) {
 	return ltrim(rtrim(s));
 }
 
-std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems, bool removeEmpty) {
+std::vector<std::string> &split(const std::string &s, const char delim, std::vector<std::string> &elems, const bool removeEmpty) {
 	std::stringstream ss(s);
 	std::string item;
 	while(std::getline(ss, item, delim)) {
@@ -39,14 +38,14 @@ std::vector<std::string> &split(const std::string &s, char delim, std::vector<st
 }
 
 
-std::vector<std::string> split(const std::string &s, char delim, bool removeEmpty) {
+std::vector<std::string> split(const std::string &s, const char delim, const bool removeEmpty) {
 	std::vector<std::string> elems;
 	split(s, delim, elems, removeEmpty);
 	return elems;
 }
 
 std::wstring strtowstr(const std::string& str) {
-	size_t converted = 0;
+	std::size_t converted = 0;
 	wchar_t* wchars = new wchar_t[str.length()+1];
 	errno_t error = mbstowcs_s(&converted, wchars, str.length()+1, str.c_str(), _TRUNCATE);
 	std::wstring wstr(wchars, wchars+converted-1);
@@ -55,7 +54,7 @@ std::wstring strtowstr(const std::string& str) {
 	return wstr;
 }
 std::string wstrtostr(const std::wstring& wstr) {
-	size_t size = wstr.length();
+	std::size_t size = wstr.length();
 	std::string str(size + 1, 0);
 
 	WideCharToMultiByte(CP_ACP,
@@ -69,7 +68,7 @@ std::string wstrtostr(const std::wstring& wstr) {
 	return str;
 }
 
-std::wstring getMachineIDFromName(IVirtualBox* vbox, std::string targetNameStr) {
+std::wstring getMachineIDFromName(IVirtualBox* vbox, const std::string& targetNameStr) {
 	std::wstring resultID;
 
 	std::wstring targetName = strtowstr(targetNameStr);
@@ -97,7 +96,7 @@ std::wstring getMachineIDFromName(IVirtualBox* vbox, std::string targetNameStr) 
 	return resultID;
 }
 
-std::wstring getMachineIDFromIndex(IVirtualBox* vbox, uint i) {
+std::wstring getMachineIDFromIndex(IVirtualBox* vbox, const uint i) {
 	std::wstring resultID;
 
 	SAFEARRAY* machinesArray = NULL;

@@ -6,24 +6,21 @@ extern "C"{
 	#include <libavcodec\avcodec.h>
 	#include <libavutil\imgutils.h>
 	#include <libavformat\avformat.h>
-	//#include <x264.h>
 }
-//#include <x265.h>
 #include "ColorspaceConverter.h"
 
 //Default EncoderSettings configuration
-EncoderSettings::EncoderSettings() : strictStdCompliance(FF_COMPLIANCE_NORMAL), codecOptions(NULL), fps({ 1, 25 }) {}
+EncoderSettings::EncoderSettings() : codecID(), codecOptions(nullptr), pixFormat(), fps({1, 25}), strictStdCompliance(FF_COMPLIANCE_NORMAL) {}
 
-VideoEncoder::VideoEncoder() : width(0), height(0), currentPts(0), frame(NULL), formatCtx(NULL), settings(){}
+VideoEncoder::VideoEncoder() : width(0), height(0), currentPts(0), frame(nullptr), codecCtx(nullptr), formatCtx(nullptr), settings(){}
 
-VideoEncoder::~VideoEncoder() {
-}
+VideoEncoder::~VideoEncoder() {}
 
-void VideoEncoder::setSettings(EncoderSettings settings) {
+void VideoEncoder::setSettings(const EncoderSettings& settings) {
 	this->settings = settings;
 }
 
-bool VideoEncoder::open(std::string filePath, uint width, uint height) {
+bool VideoEncoder::open(const std::string& filePath, const uint width, const uint height) {
 	this->width = width;
 	this->height = height;
 
@@ -33,14 +30,14 @@ bool VideoEncoder::open(std::string filePath, uint width, uint height) {
 	//Create encoder objects
 	AVCodec* codec = avcodec_find_encoder(settings.codecID);
 
-	if(codec == NULL) {
+	if(codec == nullptr) {
 		printf("Failed to retrieve codec with ID %d\n", settings.codecID);
 		return false;
 	}
 
 	//Set encoder settings
 	codecCtx = avcodec_alloc_context3(codec);
-	if(codecCtx == NULL) {
+	if(codecCtx == nullptr) {
 		printf("Failed to allocate context for codec\n");
 		return false;
 	}
@@ -62,13 +59,13 @@ bool VideoEncoder::open(std::string filePath, uint width, uint height) {
 	}
 
 	formatCtx = avformat_alloc_context();
-	formatCtx->oformat = av_guess_format(settings.format.c_str(), NULL, NULL);
-	if(formatCtx->oformat == NULL) {
+	formatCtx->oformat = av_guess_format(settings.format.c_str(), nullptr, nullptr);
+	if(formatCtx->oformat == nullptr) {
 		printf("Error finding format\n");
 		return false;
 	}
 	AVStream* out = avformat_new_stream(formatCtx, codec);
-	if(out == NULL) {
+	if(out == nullptr) {
 		printf("Error creating stream\n");
 		return false;
 	}
@@ -90,7 +87,7 @@ bool VideoEncoder::open(std::string filePath, uint width, uint height) {
 		return false;
 	}
 
-	ret = avformat_write_header(formatCtx, NULL);
+	ret = avformat_write_header(formatCtx, nullptr);
 	if(ret != 0) {
 		char buf[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 		av_strerror(ret, buf, sizeof(buf));
@@ -99,7 +96,7 @@ bool VideoEncoder::open(std::string filePath, uint width, uint height) {
 	}
 
 	frame = av_frame_alloc();
-	if(frame == NULL) {
+	if(frame == nullptr) {
 		printf("Error allocating frame\n");
 		return false;
 	}
@@ -138,7 +135,7 @@ bool VideoEncoder::recordFrame(BGRAPixel* data) {
 	while(true)
 	{
 		av_init_packet(&pkt);
-		pkt.data = NULL;    // packet data will be allocated by the encoder
+		pkt.data = nullptr;    // packet data will be allocated by the encoder
 		pkt.size = 0;
 
 		ret = avcodec_receive_packet(codecCtx, &pkt);
@@ -164,7 +161,7 @@ bool VideoEncoder::recordFrame(BGRAPixel* data) {
 
 bool VideoEncoder::close() {
 	//flush buffer
-	int ret = avcodec_send_frame(codecCtx, NULL);
+	int ret = avcodec_send_frame(codecCtx, nullptr);
 	if (ret < 0) {
 		printf("Error encoding frame\n");
 		return false;
@@ -173,7 +170,7 @@ bool VideoEncoder::close() {
 	AVPacket pkt;
 	while(true) {
 		av_init_packet(&pkt);
-		pkt.data = NULL;
+		pkt.data = nullptr;
 		pkt.size = 0;
 
 		ret = avcodec_receive_packet(codecCtx, &pkt);

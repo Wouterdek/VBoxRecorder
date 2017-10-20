@@ -15,7 +15,7 @@
 
 #pragma comment(lib, "Wbemuuid.lib")
 
-std::wstring GetProcessCommandLine(DWORD PID, bool& success) {
+std::wstring GetProcessCommandLine(const DWORD PID, bool& success) {
 	//Init COM
 	HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED); 
 	if(FAILED(hr)) { success = false; return L""; }
@@ -109,7 +109,7 @@ std::wstring GetProcessCommandLine(DWORD PID, bool& success) {
 	return returnValue;
 }
 
-LPVOID GetRemoteLibraryAddress(HANDLE procHandle, LPWSTR libraryName) {
+LPVOID GetRemoteLibraryAddress(const HANDLE procHandle, const LPWSTR libraryName) {
 	HMODULE* modules = new HMODULE[30];
 	UINT size = 30*sizeof(HMODULE);
 	DWORD requiredBytes;
@@ -157,9 +157,9 @@ LPVOID GetRemoteLibraryAddress(HANDLE procHandle, LPWSTR libraryName) {
 }
 
 BOOL SetPrivilege(
-		HANDLE hToken,          // token handle
-		LPCTSTR Privilege,      // Privilege to enable/disable
-		BOOL bEnablePrivilege   // TRUE to enable.  FALSE to disable
+		const HANDLE hToken,          // token handle
+		const LPCTSTR Privilege,      // Privilege to enable/disable
+		const BOOL bEnablePrivilege   // TRUE to enable.  FALSE to disable
 	){
 	TOKEN_PRIVILEGES tp;
 	LUID luid;
@@ -267,7 +267,7 @@ BOOL IsElevated() {
 	return fRet;
 }
 
-bool ElevateWithArgs(std::wstring args) {
+bool ElevateWithArgs(const std::wstring& args) {
 	wchar_t szPath[MAX_PATH];
 	if(GetModuleFileName(NULL, szPath, MAX_PATH)) {
 		SHELLEXECUTEINFO sei = {0};

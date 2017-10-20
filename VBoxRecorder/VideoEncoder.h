@@ -40,9 +40,8 @@ class VideoEncoder {
 public:
 	VideoEncoder();
 	~VideoEncoder();
-	void VideoEncoder::encodeHUFFYUV(std::string filePath, BGRAPixel* data, uint width, uint height);
-	void setSettings(EncoderSettings settings);
-	bool open(std::string filePath, uint width, uint height);
+	void setSettings(const EncoderSettings& settings);
+	bool open(const std::string& filePath, const uint width, const uint height);
 	bool recordFrame(BGRAPixel* data);
 	bool close();
 private:

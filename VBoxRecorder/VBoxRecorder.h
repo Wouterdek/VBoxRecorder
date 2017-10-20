@@ -20,7 +20,7 @@ bool recordVideo();
 bool findProcess();
 
 void startRecording(IVirtualBox* vbox, ISession* session);
-void selectMachine(IVirtualBox* vbox, std::vector<std::string>& args);
+void selectMachine(IVirtualBox* vbox, const std::vector<std::string>& args);
 void printMachineNames(IVirtualBox* vbox);
 void printHelp();
 void cmdLoop(IVirtualBoxClient* client);

@@ -5,5 +5,5 @@
 #define FOREGROUND_LIGHT_GREEN FOREGROUND_GREEN|FOREGROUND_INTENSITY
 #define FOREGROUND_LIGHT_RED FOREGROUND_RED|FOREGROUND_INTENSITY
 
-void SetConsoleColor(WORD color);
-void PrintColoredText(WORD color, char* text);
+void SetConsoleColor(const WORD color);
+void PrintColoredText(const WORD color, const char* text);

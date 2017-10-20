@@ -2,10 +2,10 @@
 #include <Windows.h>
 #include <string>
 
-std::wstring GetProcessCommandLine(DWORD PID, bool& success);
-LPVOID GetRemoteLibraryAddress(HANDLE procHandle, LPWSTR libraryName);
+std::wstring GetProcessCommandLine(const DWORD PID, bool& success);
+LPVOID GetRemoteLibraryAddress(const HANDLE procHandle, const LPWSTR libraryName);
 
 BOOL EnableDebugPrivileges(HANDLE* mainToken);
 
 BOOL IsElevated();
-bool ElevateWithArgs(std::wstring args);
+bool ElevateWithArgs(const std::wstring& args);
