@@ -69,7 +69,7 @@ BGRAPixel* scanPageForSequence(HANDLE procHandle, PVOID baseAddr, SIZE_T size, B
 	{
 		//data will be read as BGRAPixel*
 		//Make sure we don't go out of bounds
-		size_t curSize = ((size - offset) / sizeof(BGRAPixel));
+		std::size_t curSize = ((size - offset) / sizeof(BGRAPixel));
 		BGRAPixel* pixelPtr = reinterpret_cast<BGRAPixel*>(reinterpret_cast<char*>(data)+offset);
 		
 		BGRAPixel* sequenceStart = NULL;
@@ -102,7 +102,7 @@ BGRAPixel* scanPageForSequence(HANDLE procHandle, PVOID baseAddr, SIZE_T size, B
 	return NULL;
 }
 
-BGRAPixel* scanMemoryForSequence(HANDLE procHandle, BGRAPixel* sequence, size_t sequenceLength){
+BGRAPixel* scanMemoryForSequence(HANDLE procHandle, BGRAPixel* sequence, std::size_t sequenceLength){
 	long count = 0;
 	MEMORY_BASIC_INFORMATION meminfo;
 	unsigned char *addr = 0;
@@ -114,7 +114,7 @@ BGRAPixel* scanMemoryForSequence(HANDLE procHandle, BGRAPixel* sequence, size_t 
 			break;
 		}
 
-		printf("Scanning memory region %d [%p - %p]\r", count, meminfo.BaseAddress, (ULONG)meminfo.BaseAddress + meminfo.RegionSize);
+		printf("Scanning memory region %d [%p - %p]\r", count, meminfo.BaseAddress, (reinterpret_cast<unsigned char *>(meminfo.BaseAddress) + meminfo.RegionSize));
 		if ((meminfo.State & MEM_COMMIT) && (meminfo.Protect & PAGE_READWRITE))
 		{
 			BGRAPixel* address = scanPageForSequence(procHandle, meminfo.BaseAddress, meminfo.RegionSize, sequence, sequenceLength);
@@ -147,7 +147,7 @@ BGRAPixel* findFrameBuffer(HANDLE procHandle){
 		inStream.seekg(0, ios::beg);
 		inStream.read(screenshotData, size);
 		BGRAPixel* screenshot = reinterpret_cast<BGRAPixel*>(screenshotData);
-		size_t pixelCount = size / sizeof(BGRAPixel);
+		std::size_t pixelCount = size / sizeof(BGRAPixel);
 
 		BGRAPixel* frameBufferPtr = scanMemoryForSequence(procHandle, screenshot, pixelCount);
 		delete[] screenshotData;
@@ -213,7 +213,7 @@ bool recordVideo() {
 	}
 	cout << "Found framebuffer at 0x" << hex << (void*)frameBufferPtr << endl;
 
-	size_t frameBufferPixelSize = settings.width * settings.height;
+	std::size_t frameBufferPixelSize = settings.width * settings.height;
 	BGRAPixel* localFrameBuffer = new BGRAPixel[frameBufferPixelSize];
 
 	//Recording setup
@@ -337,7 +337,7 @@ bool findProcess() {
 	DWORD processCount = bytesReturned / sizeof(DWORD);
 
 	DWORD resultPID = 0;
-	size_t resultPIDMemorySize = 0;
+	std::size_t resultPIDMemorySize = 0;
 	for(uint i = 0; i<processCount; i++) {
 		HANDLE proc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ, FALSE, processes[i]); //PROCESS_VM_READ for GetProcessMemoryInfo
 		if(proc == NULL) {
@@ -793,7 +793,7 @@ void parseArguments(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-	cout << "VBoxRecorder for VirtualBox 5.1.16 r113841 Windows 64-bit" << endl;
+	cout << "VBoxRecorder for VirtualBox 5.2.0 r118431 Windows 64-bit" << endl;
 	srand(time(NULL));
 	parseArguments(argc, argv);
 	if(settings.isComplete()) {

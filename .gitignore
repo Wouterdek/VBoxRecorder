@@ -235,3 +235,5 @@ FakesAssemblies/
 
 # Visual Studio 6 workspace options file
 *.opt
+VBoxRecorder/Thumbs.db
+VBoxRecorder.VC.db
